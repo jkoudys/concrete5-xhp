@@ -3,22 +3,28 @@
 Includes the XHP element definitions for concrete5. For use with facebook's excellent xhp library, you can use this to easily write clean view-logic by puttng c5 elements right in your HTML.
 
 e.g. this:
+```
 <div id="header-area">
   <?php
     $a = new Area('Header Nav');
     $a->display($c);
   ?>
 </div>
+```
 
 becomes this:
+```
 <div id="header-area">
   <c5:area name="Header Nav" page={$c} />
 </div>
+```
 
 ## Installation
 
 Copy the c5.php into the same directory as your xhp install. Update your xhp's init.php to include:
+```
 require_once 'c5.php';
+```
 
 ## Requirements
 
