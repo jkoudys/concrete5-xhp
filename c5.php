@@ -1,19 +1,36 @@
 <?hh
-
 /* Used as the base for all elements that render from a c5 collection, e.g. the area or attributes
  * Typically these will be singleton, though I'd appreciate anyone willing to change my mind on this.
  */
-abstract class :c5:collection-element extends :x:element {
+abstract class :c5:base extends :x:element {
   attribute
-    Page page @required;
+    bool cached = false,
+    int cache-timeout = 60 // Let's default to caching for a minute
+    ;
 
   category %flow;
+
+  protected $cacheType = 'cacheable';
+  protected $cacheKey = '';
+
+  protected function compose(): :c5:base {
+  }
+
+  protected function render(): :x:composable-element {
+    if($this->getAttribute('cached')) {
+      $composed = Cache::get($this->cacheType, $this->cacheKey);
+      if(!$composed) {
+        $composed = $this->compose();
+        Cache::set($this->cacheType, $this->cacheKey, $composed, $this->getAttribute('cache-timeout'));
+      }
+    }
+    else {
+      $composed = $this->compose();
+    }
+    return $composed;
+  }
 }
 
-/* The 'raw' element, aka element of last resort
- * I'm relying on this a _lot_ right now, as converting c5 output into xhp often requires simply
- * outputting raw HTML, either as returned from a c5 function, or from the output buffer.
- */
 class :c5:raw extends :xhp:raw-pcdata-element {
   category %phrase, %flow, %metadata;
 
@@ -29,39 +46,48 @@ class :c5:raw extends :xhp:raw-pcdata-element {
   }
 }
 
-/* Area element
- * One of the most frequently used tags, this is how you can add an Area to a page.
- * I'm still thinking if 'scope="global"' in the attributes makes sense for using
- * global attributes, or if c5:globalarea should be a child of this. 
- */
-class :c5:area extends :c5:collection-element {
+
+class :c5:area extends :c5:base {
   attribute
     string name,
-    string scope;
- 
-  protected function render() : :xhp {
+    Page page,
+    enum {'global', 'local'} scope = 'local';
+
+  protected $cacheType = 'area';
+
+  protected function init(): null {
+    $this->cacheKey = $this->getAttribute('name');
+  }
+
+  protected function compose(): :xhp {
     $page = $this->getAttribute('page');
-
+    $name = $this->getAttribute('name');
     ob_start();
+    
     if($this->getAttribute('scope') == 'global') {
-      (new GlobalArea($this->getAttribute('name')))->display($page);
+      (new GlobalArea($name))->display($page);
     } else {
-      (new Area($this->getAttribute('name')))->display($page);
+      (new Area($name))->display($page);
     }
-    $buf = ob_get_clean();
 
-    return <div><c5:raw>{$buf}</c5:raw></div>;
+    return <c5:raw>{ ob_get_clean() }</c5:raw>;
   }
 }
 
-/* Attribute element
- * Simple, but useful. Casts each attribute as string, triggering each attribute's __toString()
- */
-class :c5:attribute extends :c5:collection-element {
+class :c5:attribute extends :c5:base {
   attribute
-    string handle;
+    Page page,
+    string handle,
+    string fa-icon // FontAwesome support
+    ;
 
-  protected function render() : :xhp {
+  protected $cacheType = 'attribute';
+
+  protected function init(): null {
+    $this->cacheKey = $this->getAttribute('handle');
+  }
+
+  protected function compose() : :xhp {
     $page = $this->getAttribute('page');
     return <c5:raw>{(string) $page->getAttribute($this->getAttribute('handle'))}</c5:raw>;
   }
@@ -80,7 +106,6 @@ abstract class :c5:form-element extends :x:element {
   }
 }
 
-/* FormHelper::hidden() */
 class :c5:form-hidden extends :c5:form-element {
   attribute
     string name @required,
@@ -91,7 +116,6 @@ class :c5:form-hidden extends :c5:form-element {
   }
 }
 
-/* FormHelper::password() */
 class :c5:form-password extends :c5:form-element {
   attribute
     string name @required,
@@ -102,7 +126,6 @@ class :c5:form-password extends :c5:form-element {
   }
 }
 
-/* FormHelper::submit() */
 class :c5:form-submit extends :c5:form-element {
   attribute
     string name,
@@ -114,7 +137,6 @@ class :c5:form-submit extends :c5:form-element {
   }
 }
 
-/* FormHelper::text() */
 class :c5:form-text extends :c5:form-element {
   attribute
     string name @required,
@@ -126,14 +148,13 @@ class :c5:form-text extends :c5:form-element {
 }
 
 /* The Loader
+ * Some loader functions are for loading into memory, but others (e.g. header_required) are for rendering HTML content
+ * This element is for the latter.
  */
 abstract class :c5:loader extends :x:element {
   
 }
 
-/* Loader::element()
- * Used to replace rendering elements, e.g. Loader::('header_required') calls
- */
 class :c5:loader-element extends :c5:loader {
   attribute
     string file,
