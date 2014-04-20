@@ -1,6 +1,5 @@
 <?hh
 /* Used as the base for all elements that render from a c5 collection, e.g. the area or attributes
- * Typically these will be singleton, though I'd appreciate anyone willing to change my mind on this.
  */
 abstract class :c5:base extends :x:element {
   attribute
@@ -110,6 +109,7 @@ class :c5:form extends :c5:base {
     string method,
     string action;
   public $selectIndex = 1;
+
   protected function init() {
     $this->setContext('fh', Loader::helper('form'));
     $this->setContext('form', &$this);
@@ -181,7 +181,7 @@ class :c5:form-text extends :c5:base {
 class :c5:form-select extends :c5:base {
   attribute
     :select,
-    string name,
+    string name @required,
     Map options,
     string selected;
 
@@ -205,13 +205,18 @@ class :c5:form-select extends :c5:base {
     }
     
     // Filter out the attribs we don't need in root element
-    $attributes = Map::fromArray($this->getAttributes())->remove('options')->remove('selected')->remove('class');
+    $attributes = Map::fromArray($this->getAttributes())->remove('options')->remove('selected')->remove('class')->remove('id');
     return 
       (<select id={ $id } class={trim('ccm-input-select ' . $class)} >
       {
         $options->mapWithKey(
-          function($k, $v) use ($selected) { 
-            return <option value={ $k } selected={ $selected == $k } >{ $v }</option>;
+          function($k, $v) use ($selected, $name) { 
+            $isSelected =
+              $selected == $k &&
+              !isset($_REQUEST[$_key]) ||
+                ($name !== false && $name == $k) ||
+                (is_array($_REQUEST[$_name]) && (in_array($k, $_REQUEST[$_name])));
+            return <option value={ $k } selected={ $isSelected } >{ $v }</option>;
           })
       }
       </select>)->setAttributes($attributes);
