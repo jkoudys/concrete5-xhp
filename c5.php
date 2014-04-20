@@ -4,6 +4,7 @@
  */
 abstract class :c5:base extends :x:element {
   attribute
+    string class,
     bool cached = false,
     int cache-timeout = 60 // Let's default to caching for a minute
     ;
@@ -97,59 +98,129 @@ class :c5:attribute extends :c5:base {
  * I'm just grabbing the raw strings from the helpers for now, but eventually
  * the helper logic should all go inside these render() functions
  */
-abstract class :c5:form-element extends :x:element {
-  category %flow;
 
-  public $fh;
+/* The actual <form> element
+ * We're using contexts, so rather than declare a "$fh = Loader::helper('form')",
+ * just start your forms with <c5:form> and the helper will be available to
+ * all contained <c5:form-* elements.
+ */
+class :c5:form extends :c5:base {
+  attribute
+    :form,
+    string method,
+    string action;
+  public $selectIndex = 1;
   protected function init() {
-    $this->fh = Loader::helper('form');
+    $this->setContext('fh', Loader::helper('form'));
+    $this->setContext('form', &$this);
+  }
+
+  protected function compose(): :xhp {
+    // We build this array so that any standard html:form attribute can pass through
+    $attributes = Map::fromArray($this->getAttributes());
+    $class = $attributes['class'];
+    $method = $attributes['method'];
+    $action = $attributes['action'];
+    $attributes->remove('class')->remove('method')->remove('action');
+
+    return
+      (<form class={ $class } method={ $method } action={ $action }>
+        { $this->getChildren() }
+      </form>)->setAttributes($attributes);
   }
 }
 
-class :c5:form-hidden extends :c5:form-element {
+class :c5:form-hidden extends :c5:base {
   attribute
+    :input,
+    string name @required,
+    string value;
+
+  protected function compose() : :xhp {
+    return <c5:raw>{ $this->getContext('fh')->hidden($this->getAttribute('name'),$this->getAttribute('value')) }</c5:raw>;
+  }
+}
+
+class :c5:form-password extends :c5:base {
+  attribute
+    :input,
     string name @required,
     string value;
 
   protected function render() : :xhp {
-    return <c5:raw>{ $this->fh->hidden($this->getAttribute('name'),$this->getAttribute('value')) }</c5:raw>;
+    return <c5:raw>{ $this->getContext('fh')->password($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
   }
 }
 
-class :c5:form-password extends :c5:form-element {
+class :c5:form-submit extends :c5:base {
   attribute
+    :input,
+    string name @required,
+    string value = 'OK';
+
+  protected function render() : :xhp {
+    $value = $this->getAttribute('value');
+    return <c5:raw>{ $this->getContext('fh')->submit($this->getAttribute('name'), $value) }</c5:raw>;
+  }
+}
+
+class :c5:form-text extends :c5:base {
+  attribute
+    :input,
     string name @required,
     string value;
 
   protected function render() : :xhp {
-    return <c5:raw>{ $this->fh->password($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
+    return <c5:raw>{ $this->getContext('fh')->text($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
   }
 }
 
-class :c5:form-submit extends :c5:form-element {
+/* Until here, the form helper classes are trivial enough that they're not terribly useful, even in the helper.
+ * The 'select' is a good case study in converting helpers to xhp elements.
+ */
+class :c5:form-select extends :c5:base {
   attribute
+    :select,
     string name,
-    string value;
+    Map options,
+    string selected;
 
-  protected function render() : :xhp {
-    $value = $this->getAttribute('value') ?: 'OK';
-    return <c5:raw>{ $this->fh->submit($this->getAttribute('name'), $value) }</c5:raw>;
+  protected function init(): null {
   }
-}
 
-class :c5:form-text extends :c5:form-element {
-  attribute
-    string name @required,
-    string value;
-
-  protected function render() : :xhp {
-    return <c5:raw>{ $this->fh->text($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
+  protected function compose(): :xhp {
+    $name = $this->getAttribute('name');
+    $selected = $this->getAttribute('selected');
+    $options = $this->getAttribute('options');
+    $class = $this->getAttribute('class');
+    
+    if (substr($name, -2) == '[]') {
+      $form = $this->getContext('form');
+      $_name = substr($name, 0, -2);
+      $id = $_name . $form->selectIndex;
+      $form->selectIndex++;
+    } else {
+      $_name = $name;
+      $id = $name;
+    }
+    
+    // Filter out the attribs we don't need in root element
+    $attributes = Map::fromArray($this->getAttributes())->remove('options')->remove('selected')->remove('class');
+    return 
+      (<select id={ $id } class={trim('ccm-input-select ' . $class)} >
+      {
+        $options->mapWithKey(
+          function($k, $v) use ($selected) { 
+            return <option value={ $k } selected={ $selected == $k } >{ $v }</option>;
+          })
+      }
+      </select>)->setAttributes($attributes);
   }
 }
 
 /* The Loader
  * Some loader functions are for loading into memory, but others (e.g. header_required) are for rendering HTML content
- * This element is for the latter.
+ * These elements are for the latter.
  */
 abstract class :c5:loader extends :x:element {
   
@@ -157,7 +228,7 @@ abstract class :c5:loader extends :x:element {
 
 class :c5:loader-element extends :c5:loader {
   attribute
-    string file,
+    string file @required,
     string args;
 
   protected function render() : :xhp {
