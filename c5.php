@@ -51,26 +51,44 @@ class :c5:area extends :c5:base {
   attribute
     string name,
     Page page,
+    Map attributes,
+    :xhp block-wrapper,
     enum {'global', 'local'} scope = 'local';
 
   protected $cacheType = 'area';
 
-  protected function init(): null {
+  protected function init(): void {
     $this->cacheKey = $this->getAttribute('name');
   }
 
   protected function compose(): :xhp {
     $page = $this->getAttribute('page');
     $name = $this->getAttribute('name');
-    ob_start();
     
     if($this->getAttribute('scope') == 'global') {
-      (new GlobalArea($name))->display($page);
+      $area = new GlobalArea($name);
     } else {
-      (new Area($name))->display($page);
+      $area = new Area($name);
     }
 
-    return <c5:raw>{ ob_get_clean() }</c5:raw>;
+    if($attributes = $this->getAttribute('attributes')) {
+      foreach($attributes as $k => $v) {
+        $area->setAttribute($k, $v);
+      }
+    }
+
+    $blockWrapper = $this->getAttribute('block-wrapper');
+    
+    ob_start();
+    $area->display($page);
+    $renderedArea = <c5:raw>{ ob_get_clean() }</c5:raw>;
+
+    if($blockWrapper) {
+      return $blockWrapper->appendChild($renderedArea);
+    }
+    else {
+      return $renderedArea;
+    }
   }
 }
 
@@ -83,7 +101,7 @@ class :c5:attribute extends :c5:base {
 
   protected $cacheType = 'attribute';
 
-  protected function init(): null {
+  protected function init(): void {
     $this->cacheKey = $this->getAttribute('handle');
   }
 
@@ -105,10 +123,9 @@ class :c5:attribute extends :c5:base {
  */
 class :c5:form extends :c5:base {
   attribute
-    :form,
-    string method,
-    string action;
+    :form;
   public $selectIndex = 1;
+  public $radioIndex = 1;
 
   protected function init() {
     $this->setContext('fh', Loader::helper('form'));
@@ -116,20 +133,14 @@ class :c5:form extends :c5:base {
   }
 
   protected function compose(): :xhp {
-    // We build this array so that any standard html:form attribute can pass through
-    $attributes = Map::fromArray($this->getAttributes());
-    $class = $attributes['class'];
-    $method = $attributes['method'];
-    $action = $attributes['action'];
-    $attributes->remove('class')->remove('method')->remove('action');
-
     return
-      (<form class={ $class } method={ $method } action={ $action }>
+      (<form>
         { $this->getChildren() }
-      </form>)->setAttributes($attributes);
+      </form>)->setAttributes($this->getAttributes());
   }
 }
 
+/* These classes are the 'input-type' helpers. They're mostly useless, and I recommend against using them */
 class :c5:form-hidden extends :c5:base {
   attribute
     :input,
@@ -170,7 +181,7 @@ class :c5:form-text extends :c5:base {
     string name @required,
     string value;
 
-  protected function render() : :xhp {
+  protected function compose(): :xhp {
     return <c5:raw>{ $this->getContext('fh')->text($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
   }
 }
@@ -185,7 +196,7 @@ class :c5:form-select extends :c5:base {
     Map options,
     string selected;
 
-  protected function init(): null {
+  protected function init(): void {
   }
 
   protected function compose(): :xhp {
@@ -223,6 +234,82 @@ class :c5:form-select extends :c5:base {
   }
 }
 
+class :c5:form-select-multiple extends :c5:base {
+  attribute
+    :c5:form-select;
+  protected function compose(): :xhp {
+    $name = $this->getAttribute('name');
+    $id = $name . '[]';
+
+    $selected = $this->getAttribute('selected');
+
+    $inputIgnore = <input type="hidden" class="ignore" name={$name} value="" />;
+    $select = <select id={$id} multiple="multiple" />;
+    foreach ($this->getAttribute('options') as $val => $text) {
+      $isSelected = in_array($val, Vector { $this->getAttribute('selected')} );
+      $select->appendChild( <option value={$val} selected={$isSelected}>{$text}</option> );
+    }
+    $attributes = Map::fromArray($this->getAttributes())->remove('options')->remove('selected')->remove('class')->remove('id');
+    $select->setAttributes($attributes);
+
+    return <x:frag>{Vector { $inputIgnore, $select }}</x:frag>;
+  }
+}
+
+/*
+ * Generates a radio button
+ */
+class :c5:form-radio extends :c5:base {
+  attribute
+    :input,
+    string name @required,
+    string option,
+    string selected;
+
+  protected function compose(): :xhp {
+    $form = $this->getContext('form');
+    $value = $this->getOption('option');
+
+    $checked = ($name == $value && !isset($_REQUEST[$name]) || (isset($_REQUEST[$name]) && $_REQUEST[$name] == $value));
+
+    $input = <input type="radio" id={ $this->getAttribute('name') . $form->radioIndex } class={ trim($this->getAttribute('class') . ' ccm-input-radio') }  />;
+    $attributes = Map::fromArray($this->getAttributes())->remove('class')->remove('id')->remove('selected')->remove('option');
+    $input->setAttributes($attributes);
+
+    $form->radioIndex++;
+
+    return $input;
+  }
+}
+
+/*
+ * Avatar helper
+ */
+class :c5:avatar extends :c5:base {
+  attribute :img,
+    Object user @required,
+    float aspectRatio = 1.0;
+
+  protected function compose(): :xhp {
+    $uo = $this->getAttribute('user');
+    $attributes = Map::fromArray($this->getAttributes())->remove('user')->remove('aspectRatio');
+    if ($uo->hasAvatar()) {
+      if (file_exists(DIR_FILES_AVATARS . '/' . $uo->getUserID() . '.jpg')) {
+        $size = DIR_FILES_AVATARS . '/' . $uo->getUserID() . '.jpg';
+        $src = REL_DIR_FILES_AVATARS . '/' . $uo->getUserID() . '.jpg';
+      } 
+      if (file_exists($size)) {
+        $isize = getimagesize($size);
+        $isize[0] = round($isize[0]*$aspectRatio);
+        $isize[1] = round($isize[1]*$aspectRatio);
+
+        return (<img class="u-avatar" src={$src} width={$isize[0]} height={$isize[1]} alt={$uo->getUserName()} />)->setAttributes($attributes);
+      }
+    }
+		return (<img class="u-avatar" src={AVATAR_NONE} width={AVATAR_WIDTH*$this->getAttribute('aspectRatio')} height={AVATAR_HEIGHT*$this->getAttribute('aspectRatio')} alt="" />)->setAttributes($attributes);
+  }
+}
+
 /* The Loader
  * Some loader functions are for loading into memory, but others (e.g. header_required) are for rendering HTML content
  * These elements are for the latter.
@@ -234,12 +321,35 @@ abstract class :c5:loader extends :x:element {
 class :c5:loader-element extends :c5:loader {
   attribute
     string file @required,
-    string args;
+    mixed args;
 
   protected function render() : :xhp {
     ob_start();
     Loader::element( $this->getAttribute('file'), $this->getAttribute('args') );
     return <c5:raw>{ ob_get_clean() }</c5:raw>;
+  }
+}
+
+/* <a> -- generally used to replace $this->url() calls in the controller/view, or the NavigationHelper */
+class :c5:a extends :c5:base {
+  attribute
+    :a,
+    Page page,
+    string task;
+  category %flow, %phrase, %interactive;
+  // Should not contain %interactive
+  children (pcdata | %flow)*;
+
+  protected function compose(): :xhp {
+    $attributes = Map::fromArray($this->getAttributes())->remove('href')->remove('page')->remove('task');
+
+    if($href = $this->getAttribute('href')) {
+      $link = View::url($href, $this->getAttribute('task'));
+    }
+    else if($page = $this->getAttribute('page')) {
+      $link = Loader::helper('navigation')->getLinkToCollection($page);
+    }
+    return (<a href={$link}>{$this->getChildren()}</a>)->setAttributes($attributes);
   }
 }
 
