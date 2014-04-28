@@ -17,6 +17,7 @@ abstract class :c5:base extends :x:element {
   }
 
   protected function render(): :x:composable-element {
+
     if($this->getAttribute('cached')) {
       $composed = Cache::get($this->cacheType, $this->cacheKey);
       if(!$composed) {
@@ -46,6 +47,22 @@ class :c5:raw extends :xhp:raw-pcdata-element {
   }
 }
 
+/* Use a base 'HTML' element, to which we'll setup our whole page */
+class :c5:html extends :c5:base {
+  attribute
+    :html,
+    Page page;
+
+  protected function init() {
+    if($page = $this->getAttribute('page')) {
+      $this->setContext('page', $page);
+    }
+  }
+
+  protected function compose(): :xhp {
+    return (<html>{$this->getChildren()}</html>)->setAttributes($attributes);
+  }
+}
 
 class :c5:area extends :c5:base {
   attribute
@@ -72,9 +89,7 @@ class :c5:area extends :c5:base {
     }
 
     if($attributes = $this->getAttribute('attributes')) {
-      foreach($attributes as $k => $v) {
-        $area->setAttribute($k, $v);
-      }
+      $area->setAttributes($attributes);
     }
 
     $blockWrapper = $this->getAttribute('block-wrapper');
@@ -288,7 +303,7 @@ class :c5:form-radio extends :c5:base {
 class :c5:avatar extends :c5:base {
   attribute :img,
     Object user @required,
-    float aspectRatio = 1.0;
+    float aspect-ratio = 1.0;
 
   protected function compose(): :xhp {
     $uo = $this->getAttribute('user');
@@ -306,7 +321,7 @@ class :c5:avatar extends :c5:base {
         return (<img class="u-avatar" src={$src} width={$isize[0]} height={$isize[1]} alt={$uo->getUserName()} />)->setAttributes($attributes);
       }
     }
-		return (<img class="u-avatar" src={AVATAR_NONE} width={AVATAR_WIDTH*$this->getAttribute('aspectRatio')} height={AVATAR_HEIGHT*$this->getAttribute('aspectRatio')} alt="" />)->setAttributes($attributes);
+		return (<img class="u-avatar" src={AVATAR_NONE} width={AVATAR_WIDTH*$this->getAttribute('aspect-ratio')} height={AVATAR_HEIGHT*$this->getAttribute('aspect-ratio')} alt="" />)->setAttributes($attributes);
   }
 }
 
@@ -335,19 +350,24 @@ class :c5:a extends :c5:base {
   attribute
     :a,
     Page page,
+    Map parameters,
     string task;
   category %flow, %phrase, %interactive;
   // Should not contain %interactive
   children (pcdata | %flow)*;
 
   protected function compose(): :xhp {
-    $attributes = Map::fromArray($this->getAttributes())->remove('href')->remove('page')->remove('task');
+    $attributes = Map::fromArray($this->getAttributes())->remove('href')->remove('page')->remove('task')->remove('parameters');
 
     if($href = $this->getAttribute('href')) {
       $link = View::url($href, $this->getAttribute('task'));
     }
     else if($page = $this->getAttribute('page')) {
       $link = Loader::helper('navigation')->getLinkToCollection($page);
+      $parameters = $this->getAttribute('parameters');
+      if($parameters) {
+        $link .= '?' . join('&', $parameters->mapWithKey(function($k, $v) { return "$k=$v"; }));
+      }
     }
     return (<a href={$link}>{$this->getChildren()}</a>)->setAttributes($attributes);
   }
