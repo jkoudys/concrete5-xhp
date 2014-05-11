@@ -1,9 +1,10 @@
 <?hh
+Loader::library('xhp/init');
+
 /* Used as the base for all elements that render from a c5 collection, e.g. the area or attributes
  */
 abstract class :c5:base extends :x:element {
   attribute
-    string class,
     bool cached = false,
     int cache-timeout = 60 // Let's default to caching for a minute
     ;
@@ -13,10 +14,10 @@ abstract class :c5:base extends :x:element {
   protected $cacheType = 'cacheable';
   protected $cacheKey = '';
 
-  protected function compose(): :c5:base {
+  protected function compose(): :xhp {
   }
 
-  protected function render(): :x:composable-element {
+  final protected function render(): :x:composable-element {
 
     if($this->getAttribute('cached')) {
       $composed = Cache::get($this->cacheType, $this->cacheKey);
@@ -173,7 +174,7 @@ class :c5:form-password extends :c5:base {
     string name @required,
     string value;
 
-  protected function render() : :xhp {
+  protected function compose() : :xhp {
     return <c5:raw>{ $this->getContext('fh')->password($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
   }
 }
@@ -184,7 +185,7 @@ class :c5:form-submit extends :c5:base {
     string name @required,
     string value = 'OK';
 
-  protected function render() : :xhp {
+  protected function compose() : :xhp {
     $value = $this->getAttribute('value');
     return <c5:raw>{ $this->getContext('fh')->submit($this->getAttribute('name'), $value) }</c5:raw>;
   }
@@ -329,16 +330,12 @@ class :c5:avatar extends :c5:base {
  * Some loader functions are for loading into memory, but others (e.g. header_required) are for rendering HTML content
  * These elements are for the latter.
  */
-abstract class :c5:loader extends :x:element {
-  
-}
-
-class :c5:loader-element extends :c5:loader {
+class :c5:loader-element extends :c5:base {
   attribute
     string file @required,
     mixed args;
 
-  protected function render() : :xhp {
+  protected function compose() : :xhp {
     ob_start();
     Loader::element( $this->getAttribute('file'), $this->getAttribute('args') );
     return <c5:raw>{ ob_get_clean() }</c5:raw>;
