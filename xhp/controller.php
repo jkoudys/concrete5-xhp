@@ -28,6 +28,6 @@ class XhpPackage extends Package {
   }
 
   public function on_start(): void {
-    Loader::library('xhp/init');
+    Loader::library('xhp/init', 'xhp');
   }
 }

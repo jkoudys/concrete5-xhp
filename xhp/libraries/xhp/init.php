@@ -1,4 +1,4 @@
 <?hh
-Loader::library('xhp/core');
-Loader::library('xhp/html');
-Loader::library('xhp/c5');
+Loader::library('xhp/core','xhp');
+Loader::library('xhp/html','xhp');
+Loader::library('xhp/c5','xhp');

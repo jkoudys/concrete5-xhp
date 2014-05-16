@@ -1,5 +1,4 @@
 <?hh
-Loader::library('xhp/init');
 
 /* Used as the base for all elements that render from a c5 collection, e.g. the area or attributes
  */
