@@ -1,4 +1,4 @@
 <?hh
-require_once 'core.php';
-require_once 'html.php';
-require_once 'c5.php';
+Loader::library('xhp/core');
+Loader::library('xhp/html');
+Loader::library('xhp/c5');
