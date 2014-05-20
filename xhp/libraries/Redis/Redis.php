@@ -11,7 +11,7 @@ final class Redis {
    */
   private function __construct(){
     self::$redisDB = new \Redis();
-    self::$redisDB->connect('127.0.0.1');
+    self::$redisDB->connect(REDIS_CONNECTION_HANDLE);
   }
 
   /**
