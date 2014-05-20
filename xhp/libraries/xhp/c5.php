@@ -2,11 +2,11 @@
 
 /* Used as the base for all elements that render from a c5 collection, e.g. the area or attributes
  */
+Loader::library('Redis/Redis','xhp');
 abstract class :c5:base extends :x:element {
   attribute
     bool cached = false,
-    int cache-timeout = 60 // Let's default to caching for a minute
-    ;
+    int cache-timeout = 60; // Let's default to caching for a minute
 
   category %flow;
 
@@ -17,12 +17,11 @@ abstract class :c5:base extends :x:element {
   }
 
   final protected function render(): :x:composable-element {
-
     if($this->getAttribute('cached')) {
-      $composed = Cache::get($this->cacheType, $this->cacheKey);
+      $composed = unserialize(\Concrete\Database\Redis::db()->get($this->cacheType . $this->cacheKey));
       if(!$composed) {
         $composed = $this->compose();
-        Cache::set($this->cacheType, $this->cacheKey, $composed, $this->getAttribute('cache-timeout'));
+        \Concrete\Database\Redis::db()->set($this->cacheType . $this->cacheKey, serialize($composed), $this->getAttribute('cache-timeout'));
       }
     }
     else {
