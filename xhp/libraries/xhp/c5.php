@@ -6,7 +6,7 @@ Loader::library('Redis/Redis','xhp');
 abstract class :c5:base extends :x:element {
   attribute
     bool cached = false,
-    int cache-timeout = 60; // Let's default to caching for a minute
+    int cache-options = null; // Let's not set any cache options
 
   category %flow;
 
@@ -21,7 +21,7 @@ abstract class :c5:base extends :x:element {
       $composed = unserialize(\Concrete\Database\Redis::db()->get($this->cacheType . $this->cacheKey));
       if(!$composed) {
         $composed = $this->compose();
-        \Concrete\Database\Redis::db()->set($this->cacheType . $this->cacheKey, serialize($composed), $this->getAttribute('cache-timeout'));
+        \Concrete\Database\Redis::db()->set($this->cacheType . $this->cacheKey, serialize($composed), $this->getAttribute('cache-options'));
       }
     }
     else {
