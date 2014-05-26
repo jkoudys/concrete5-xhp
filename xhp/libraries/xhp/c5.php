@@ -87,8 +87,8 @@ class :c5:area extends :c5:base {
       $area = new Area($name);
     }
 
-    if($attributes = $this->getAttribute('attributes')) {
-      $area->setAttributes($attributes);
+    foreach($this->getAttribute('attributes') as $attribute) {
+      $area->setAttribute($attribute);
     }
 
     $blockWrapper = $this->getAttribute('block-wrapper');
