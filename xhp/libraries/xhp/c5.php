@@ -67,7 +67,7 @@ class :c5:area extends :c5:base {
   attribute
     string name,
     Page page,
-    Map attributes,
+    Map attributes = Map { },
     :xhp block-wrapper,
     enum {'global', 'local'} scope = 'local';
 

@@ -15,7 +15,7 @@ class Page extends Concrete5_Model_Page {
 
   public function initXhp(): void {
     $cp = new Permissions($this);
-    $this->xhpHead = <x:frag/>;
+    $this->xhpHead = <head />;
     $this->xhpBody = <body class={'preload ' . ($cp->canWrite() ? 'c5-edit-bar ' : '') . ' ' . ($this->isEditMode() ? 'c5-edit-mode' : '')} />;
   }
   public function getXhp(): :xhp {
