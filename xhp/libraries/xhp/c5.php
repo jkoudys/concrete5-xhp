@@ -200,6 +200,17 @@ class :c5:form-text extends :c5:base {
   }
 }
 
+class :c5:form-label extends :c5:base {
+  attribute
+    :label,
+    string name @required,
+    string value;
+
+  protected function compose(): :xhp {
+    return <c5:raw>{ $this->getContext('fh')->label($this->getAttribute('name'), $this->getAttribute('value')) }</c5:raw>;
+  }
+}
+
 /* Until here, the form helper classes are trivial enough that they're not terribly useful, even in the helper.
  * The 'select' is a good case study in converting helpers to xhp elements.
  */
@@ -293,6 +304,20 @@ class :c5:form-radio extends :c5:base {
     $form->radioIndex++;
 
     return $input;
+  }
+}
+
+/*
+ * Display a form attribute
+ */
+class :c5:form-attribute extends :c5:base {
+  attribute
+    AttributeKey key @required,
+    string required,
+    boolean include-label = true;
+
+  protected function compose(): :xhp {
+    return <c5:raw>{ (Loader::helper('form/attribute'))->display( $this->getAttribute('key'), $this->getAttribute('required'), $this->getAttribute('include-label') ) }</c5:raw>;
   }
 }
 

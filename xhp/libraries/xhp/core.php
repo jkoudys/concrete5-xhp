@@ -882,7 +882,7 @@ abstract class :x:primitive extends :x:composable-element {
       // Render to string
       return $this->stringify();
     } catch (Exception $error) {
-      trigger_error($error->getMessage(), E_USER_ERROR);
+      trigger_error($error->getMessage() . $error->getTraceAsString(), E_USER_ERROR);
     }
   }
 }
