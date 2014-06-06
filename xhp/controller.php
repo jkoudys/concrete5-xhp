@@ -29,7 +29,11 @@ class XhpPackage extends Package {
 
   public function on_start(): void {
     Loader::library('/xhp/init', 'xhp');
-    Loader::library('/xhp/init');
+    // Ignore any failures finding custom init
+    try { 
+      Loader::library('xhp/init');
+    } catch(Exception $e) {
+    }
     Loader::model('/page', 'xhp');
   }
 }
