@@ -21,9 +21,10 @@ becomes this:
 
 ## Installation
 
-Copy the c5.php into the same directory as your xhp install. Update your xhp's init.php to include:
+Copy the xhp/ directory into your `SITE_ROOT/packages`, then install from the c5 dashboard. You can add additional XHP extensions, by loading them inside of `SITE_ROOT/libraries/xhp/init.php`.
 ```
-require_once 'c5.php';
+<?hh
+Loader::library('xhp/my_custom_classes')
 ```
 
 ## Requirements
